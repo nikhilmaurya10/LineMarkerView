@@ -17,7 +17,7 @@ class LineMarkerData {
         this.label = markerLabel;
     }
 
-    public float getStartX() {
+    public Float getStartX() {
         return startX;
     }
 

@@ -2,22 +2,22 @@ package com.iaugmentor.library;
 
 public class LineMarker {
 
-    public LineMarker(float positionPercentage, int color, float width, String label) {
+    public LineMarker(float positionPercentage, int markerColor, float width, String markerLabel) {
         this.positionPercentage = positionPercentage;
-        this.color = color;
+        this.color = markerColor;
         this.width = width;
-        this.label = label;
+        this.label = markerLabel;
     }
-    public LineMarker(float positionPercentage, int color, String label) {
+    public LineMarker(float positionPercentage, int markerColor, String markerLabel) {
         this.positionPercentage = positionPercentage;
-        this.color = color;
+        this.color = markerColor;
         this.width = 0;
-        this.label = label;
+        this.label = markerLabel;
     }
 
     public LineMarker(float positionPercentage, int markerColor) {
         this.positionPercentage = positionPercentage;
-        this.color = color;
+        this.color = markerColor;
         this.width = 0;
         this.label = "";
     }

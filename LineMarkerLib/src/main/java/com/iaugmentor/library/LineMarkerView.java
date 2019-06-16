@@ -14,10 +14,12 @@ import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 
+
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 
 public class LineMarkerView extends View {
 
@@ -61,6 +63,7 @@ public class LineMarkerView extends View {
     }
 
     private void init(AttributeSet attributeSet) {
+        measureCompleted = false;
         Resources res = getResources();
         if(res != null) {
             defaultBaseWidth = res.getDimension(R.dimen.defaultBaseWidth);
@@ -97,14 +100,14 @@ public class LineMarkerView extends View {
             baseLinePaint.setAntiAlias(true);
 
             fillLinePaint = new Paint();
-            fillLinePaint.setColor(res.getColor(R.color.fillLinePaint));
+            fillLinePaint.setColor(res.getColor(R.color.fillLineColor));
             fillLinePaint.setStrokeCap(Paint.Cap.ROUND);
             fillLinePaint.setStrokeWidth(baseThickness);
             baseLinePaint.setAntiAlias(true);
 
             fillCirclePaint = new Paint();
             fillCirclePaint.setStyle(Paint.Style.FILL);
-            fillCirclePaint.setColor(res.getColor(R.color.fillLinePaint));
+            fillCirclePaint.setColor(res.getColor(R.color.fillLineColor));
 
             markerPaint1 = new Paint();
             markerPaint1.setColor(res.getColor(R.color.marker1Color));
@@ -173,16 +176,23 @@ public class LineMarkerView extends View {
     private void refreshData() {
         lineMarkerDataList.clear();
         for (LineMarker marker : lineMarkerList) {
-            float startx = (viewWidht*marker.getPositionPercentage())/100;
+            float startX = markerThickness/2;
+            if ((viewWidht*marker.getPositionPercentage())/100  -markerThickness/2 >= 0) startX = (viewWidht*marker.getPositionPercentage())/100 - markerThickness/2;
             float startY = 0.0f + defaultExtraPadding;
             float stopY = viewHeight - defaultExtraPadding;
             Paint p = new Paint();
             p.setColor(marker.getColor());
             if (marker.getWidth() > 0) p.setStrokeWidth(marker.getWidth());
             else p.setStrokeWidth(markerThickness);
-            LineMarkerData data = new LineMarkerData(startx, startY, startx, stopY, p,marker.getLabel());
+            LineMarkerData data = new LineMarkerData(startX, startY, startX, stopY, p,marker.getLabel());
             lineMarkerDataList.add(data);
         }
+        Collections.sort(lineMarkerDataList, new Comparator<LineMarkerData>() {
+            public int compare(LineMarkerData offer1, LineMarkerData offer2) {
+                return offer1.getStartX().compareTo(offer2.getStartX());
+            }
+        });
+
         invalidate();
     }
 
@@ -192,40 +202,46 @@ public class LineMarkerView extends View {
         drawBaseLine(canvas);
         drawFillLine(canvas);
         drawMarkers(canvas);
-//        drawMarker1(canvas);
-//        drawMarker2(canvas);
-
     }
 
     private void drawMarkers(Canvas canvas) {
+        int i = 0;
         for(LineMarkerData data : lineMarkerDataList) {
-            if (data.startX >= viewWidht - 20) {
-                data.startX -= 20;
-                data.stopX -= 20;
-            }
-            canvas.drawLine(data.startX, data.startY, data.stopX, data.stopY, data.markerPaint);
-            Log.d("Color>>>>>>>>>", data.markerPaint.getColor() + "");
-            canvas.save();
-
+            canvas.drawLine(data.startX , data.startY, data.stopX, data.stopY, data.markerPaint);
             String text = data.label;
-            if (text==null)
-            {
-                text="";
+            if (!text.isEmpty()) {
+                TextPaint textPaint = new TextPaint();
+                textPaint.setAntiAlias(true);
+                textPaint.setTextSize(defaultLabelSize);
+    //            if (overrideLabelColor) {
+    //                textPaint.setColor(data.markerPaint.getColor());
+    //            } else
+    //                textPaint.setColor(markerLabelColor);
+                textPaint.setColor(getResources().getColor(R.color.defaultLabelColor));
+                float markerThickness = data.stopX - data.startX;
+                int width = (int) textPaint.measureText(text);
+                StaticLayout layout;
+                //Check if we're running on Android 6.0 or higher
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    StaticLayout.Builder sb = StaticLayout.Builder.obtain(text,  0, text.length(), textPaint, width)
+                            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                            .setLineSpacing(0, 1.0f)
+                            .setIncludePad (false);
+                    layout = sb.build();
+                } else {
+                    layout = new StaticLayout(text, textPaint, width, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0, false);
+                }
+                float tvHeight = layout.getHeight();
+                float textY = data.startY - tvHeight;
+                float textX = data.startX - width/2;
+                if (i%2 == 0) textY = data.stopY;
+                if (data.startX + width > viewWidht) textX = data.startX - width;
+                canvas.save();
+                canvas.translate(textX,  textY);
+                layout.draw(canvas);
+                canvas.restore();
             }
-            TextPaint textPaint = new TextPaint();
-            textPaint.setAntiAlias(true);
-            textPaint.setTextSize(defaultLabelSize);
-//            if (overrideLabelColor) {
-//                textPaint.setColor(data.markerPaint.getColor());
-//            } else
-//                textPaint.setColor(markerLabelColor);
-            textPaint.setColor(getResources().getColor(R.color.white));
-            float markerThickness = data.stopX - data.startX;
-            canvas.translate(data.startX - defaultMarkerThickness,  data.stopY);
-            int width = (int) textPaint.measureText(text);
-            StaticLayout staticLayout = new StaticLayout(text, textPaint, (int) width, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0, false);
-            staticLayout.draw(canvas);
-            canvas.restore();
+            i++;
 
         }
 
@@ -233,62 +249,59 @@ public class LineMarkerView extends View {
 
     private void drawFillLine(Canvas canvas) {
         canvas.drawLine(0.0f, viewHeight/2,  viewWidht*fillLineWidth/100, viewHeight/2, fillLinePaint);
-        float cx = viewWidht*fillLineWidth/100;
-        if (fillLineWidth < baseThickness) cx += baseThickness;
-        else if (viewWidht*fillLineWidth/100 >= viewWidht-baseThickness) cx -= baseThickness;
-        canvas.drawCircle(cx, viewHeight/2, baseThickness, fillCirclePaint);
+        float circleCx = (viewWidht*fillLineWidth/100);
+        if (circleCx < baseThickness) circleCx += baseThickness;
+        else if (viewWidht - baseThickness < circleCx) circleCx -= baseThickness;
+        canvas.drawCircle(circleCx, viewHeight/2, baseThickness, fillCirclePaint);
+        drawFillLineText(canvas, String.valueOf((int)fillLineWidth), circleCx, viewHeight/2 + baseThickness);
     }
 
     private void drawBaseLine(Canvas canvas) {
         canvas.drawLine(0.0f, viewHeight/2 , viewWidht, viewHeight/2, baseLinePaint);
     }
 
-    private void drawMarker1(Canvas canvas) {
-        canvas.drawLine(100.0f, 0.0f, 100.0f, viewHeight, markerPaint1);
+
+    public void addMarkers(@NonNull ArrayList<LineMarker> markers) {
+        lineMarkerList.addAll(markers);
+        if (measureCompleted)refreshData();
     }
-    private void drawMarker2(Canvas canvas) {
-        canvas.drawLine(200.0f, 0.0f, 200.0f, viewHeight, markerPaint2);
-    }
 
-//    public void setMarkers(@NonNull ArrayList<LineMarker> markers) {
-//        for (LineMarker marker : markers) {
-//            float startx = (viewWidht*marker.getPositionPercentage())/100;
-//            float startY = viewHeight/2;
-//            float stopY = viewHeight/2;
-//            Paint p = new Paint();
-//            p = new Paint();
-//            p.setColor(marker.getColor());
-//            if (marker.getWidth() > 0) p.setStrokeWidth(marker.getWidth());
-//            else p.setStrokeWidth(markerThickness);
-//            LineMarkerData data = new LineMarkerData(startx, startY, startx, stopY, p);
-//            lineMarkerDataList.add(data);
-//        }
-//        invalidate();
-//    }
-
-//    public void setMarker(@NonNull LineMarker marker) {
-//        float startx = (viewWidht*marker.getPositionPercentage())/100;
-//        float startY = viewHeight/2;
-//        float stopY = viewHeight/2;
-//        Paint p = new Paint();
-//        p = new Paint();
-//        p.setColor(marker.getColor());
-//        if (marker.getWidth() > 0) p.setStrokeWidth(marker.getWidth());
-//        else p.setStrokeWidth(markerThickness);
-//        LineMarkerData data = new LineMarkerData(startx, startY, startx, stopY, p);
-//        lineMarkerDataList.add(data);
-//        invalidate();
-//    }
-
-    public void setMarker(@NonNull LineMarker marker) {
+    public void addMarker(@NonNull LineMarker marker) {
         lineMarkerList.add(marker);
-        refreshData();
-        if (measureCompleted) invalidate();
+        if (measureCompleted)refreshData();
     }
 
     public void resetMarkers() {
-        if (lineMarkerDataList == null) lineMarkerDataList = new ArrayList<>();
-        else lineMarkerDataList.clear();
+        if (lineMarkerList != null) lineMarkerList.clear();
+        else lineMarkerList = new ArrayList<>();
+        if (lineMarkerDataList != null) lineMarkerDataList.clear();
+        else lineMarkerDataList = new ArrayList<>();
     }
 
+    private void drawFillLineText(Canvas canvas, String text, float x, float y) {
+        TextPaint textPaint = new TextPaint();
+        textPaint.setAntiAlias(true);
+        textPaint.setTextSize(defaultLabelSize);
+        textPaint.setColor(getResources().getColor(R.color.fillLineColor));
+        int width = (int) textPaint.measureText(text);
+        StaticLayout layout;
+        //Check if we're running on Android 6.0 or higher
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            StaticLayout.Builder sb = StaticLayout.Builder.obtain(text,  0, text.length(), textPaint, width)
+                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                    .setLineSpacing(0, 1.0f)
+                    .setIncludePad (false);
+            layout = sb.build();
+        } else {
+            layout = new StaticLayout(text, textPaint, width, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0, false);
+        }
+        float tvHeight = layout.getHeight();
+        float textY = y - tvHeight;
+        float textX = x +markerThickness;
+        if (x+ width > viewWidht) textX =x - width;
+        canvas.save();
+        canvas.translate(textX,  textY - 2*baseThickness);
+        layout.draw(canvas);
+        canvas.restore();
+    }
 }
