@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="baseLineColor">#858585</color>
+    <color name="fillLinePaint">#4edd5b</color>
+    <color name="marker1Color">#8f34b7</color>
+    <color name="marker2Color">#4755d3</color>
+    <color name="defaultLabelColor">#000000</color>
+    <color name="white">#ffffff</color>
+
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="defaultBaseThickness">2dp</dimen>
+    <dimen name="defaultMarkerHeight">20dp</dimen>
+    <dimen name="defaultBaseWidth">200dp</dimen>
+    <dimen name="defaultMarkerThickness">2dp</dimen>
+    <dimen name="defaultExtraPadding">16dp</dimen>
+    <dimen name="defaultLabelSize">12dp</dimen>
+</resources>

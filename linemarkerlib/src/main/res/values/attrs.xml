@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="LineMarkerView">
+        <attr name="baseLineWidth" format="dimension"/>
+        <attr name="baseLineThickness" format="dimension"/>
+        <attr name="markerLineWThickness" format="dimension"/>
+        <attr name="markerLineHeight" format="dimension"/>
+        <attr name="markerLabelTextColor" format="color"/>
+        <attr name="overrideLabelTextColor" format="boolean"/>
+    </declare-styleable>
+</resources>
