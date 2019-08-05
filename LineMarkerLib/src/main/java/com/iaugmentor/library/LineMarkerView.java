@@ -1,5 +1,9 @@
 package com.iaugmentor.library;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
@@ -7,14 +11,18 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Build;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.RequiresApi;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.core.util.Pair;
 import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 
 
 import java.util.ArrayList;
@@ -22,6 +30,12 @@ import java.util.Collections;
 import java.util.Comparator;
 
 public class LineMarkerView extends View {
+
+    ValueAnimator fillLineAnimator, finishAnimator;
+    int animationDuration = 1000;
+    int animatedFillLineWidth = 0, animatingAlpha = 0;
+    float animatingRadius = 0;
+//
 
     private float defaultBaseWidth = 0;
     private float defaultMarkerHeight = 0;
@@ -192,8 +206,8 @@ public class LineMarkerView extends View {
                 return offer1.getStartX().compareTo(offer2.getStartX());
             }
         });
-
         invalidate();
+        startAnimation();
     }
 
     @Override
@@ -207,18 +221,16 @@ public class LineMarkerView extends View {
     private void drawMarkers(Canvas canvas) {
         int i = 0;
         for(LineMarkerData data : lineMarkerDataList) {
-            canvas.drawLine(data.startX , data.startY, data.stopX, data.stopY, data.markerPaint);
+            float startY = data.startY;
+            float stopY = data.stopY;
+
+            canvas.drawLine(data.startX , startY, data.stopX, stopY, data.markerPaint);
             String text = data.label;
-            if (!text.isEmpty()) {
+            if (!text.isEmpty() && stopY > 0  ) {
                 TextPaint textPaint = new TextPaint();
                 textPaint.setAntiAlias(true);
                 textPaint.setTextSize(defaultLabelSize);
-    //            if (overrideLabelColor) {
-    //                textPaint.setColor(data.markerPaint.getColor());
-    //            } else
-    //                textPaint.setColor(markerLabelColor);
                 textPaint.setColor(getResources().getColor(R.color.defaultLabelColor));
-                float markerThickness = data.stopX - data.startX;
                 int width = (int) textPaint.measureText(text);
                 StaticLayout layout;
                 //Check if we're running on Android 6.0 or higher
@@ -248,11 +260,11 @@ public class LineMarkerView extends View {
     }
 
     private void drawFillLine(Canvas canvas) {
-        canvas.drawLine(0.0f, viewHeight/2,  viewWidht*fillLineWidth/100, viewHeight/2, fillLinePaint);
+        canvas.drawLine(0.0f, viewHeight/2,  viewWidht*animatedFillLineWidth/100, viewHeight/2, fillLinePaint);
         float circleCx = (viewWidht*fillLineWidth/100);
         if (circleCx < baseThickness) circleCx += baseThickness;
         else if (viewWidht - baseThickness < circleCx) circleCx -= baseThickness;
-        canvas.drawCircle(circleCx, viewHeight/2, baseThickness, fillCirclePaint);
+        canvas.drawCircle(circleCx, viewHeight/2, animatingRadius, fillCirclePaint);
         drawFillLineText(canvas, String.valueOf((int)fillLineWidth), circleCx, viewHeight/2 + baseThickness);
     }
 
@@ -279,10 +291,12 @@ public class LineMarkerView extends View {
     }
 
     private void drawFillLineText(Canvas canvas, String text, float x, float y) {
+        if (animatingAlpha == 0) return;
         TextPaint textPaint = new TextPaint();
         textPaint.setAntiAlias(true);
         textPaint.setTextSize(defaultLabelSize);
         textPaint.setColor(getResources().getColor(R.color.fillLineColor));
+        textPaint.setAlpha(animatingAlpha);
         int width = (int) textPaint.measureText(text);
         StaticLayout layout;
         //Check if we're running on Android 6.0 or higher
@@ -304,4 +318,61 @@ public class LineMarkerView extends View {
         layout.draw(canvas);
         canvas.restore();
     }
+
+    private void startAnimation() {
+        if (fillLineAnimator != null ) fillLineAnimator.cancel();
+        fillLineAnimator = ValueAnimator.ofInt(0, (int) fillLineWidth);
+        fillLineAnimator.setDuration(animationDuration);
+        fillLineAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator valueAnimator) {
+                animatedFillLineWidth = (int)valueAnimator.getAnimatedValue();
+                invalidate();
+            }
+
+        });
+        fillLineAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (finishAnimator != null) finishAnimator.start();
+            }
+
+        });
+        fillLineAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        fillLineAnimator.start();
+        setUpFinishAnimation();
+    }
+
+
+    private void setUpFinishAnimation() {
+        animatingRadius = 0;
+        animatingAlpha = 0;
+        PropertyValuesHolder propertyRadius = PropertyValuesHolder.ofFloat("C_RADIUS"
+                , 0.0F, (float) 1.2*baseThickness);
+        PropertyValuesHolder propertyAlpha = PropertyValuesHolder.ofInt("TEXT_ALPHA", 0, 255);
+        if (finishAnimator != null) finishAnimator.cancel();
+        finishAnimator = new ValueAnimator();
+        finishAnimator.setValues(propertyRadius, propertyAlpha);
+        finishAnimator.setDuration(600);
+        finishAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+
+        finishAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator valueAnimator) {
+                animatingRadius = (float)valueAnimator.getAnimatedValue("C_RADIUS");
+                animatingAlpha = (int) valueAnimator.getAnimatedValue("TEXT_ALPHA");
+                invalidate();
+            }
+        });
+        finishAnimator.addListener(new AnimatorListenerAdapter()
+        {
+            @Override
+            public void onAnimationEnd(Animator animation)
+            {
+            }
+
+        });
+    }
+
+
 }
