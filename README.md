@@ -4,7 +4,7 @@ A custom View to implement following UI
 
 ## Screen Shots:
 
-![screen](../master/art/linemarkerart.png) 
+![screen](../master/art/linemarkerart.jpg) 
 
 ![screen](../master/art/imp.jpg)
 
